@@ -1,0 +1,469 @@
+<!doctype html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Protein design using MPNN</title>
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/simple.css">
+	<link rel="stylesheet" href="dist/styles.css">
+	<link rel="stylesheet" href="plugin/pointer/pointer.css" />
+	<link rel="stylesheet" href="plugin/chalkboard/style.css">
+	<link rel="stylesheet" href="plugin/customcontrols/style.css">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+	<!---	<link href="https://unpkg.com/tailwindcss@^2.0/dist/tailwind.min.css" rel="stylesheet"> -->
+	<script src="https://cdn.tailwindcss.com"></script>
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+
+<body>
+	<div class="reveal">
+		<!-- slide 1 -->
+		<div class="slides">
+
+			<section>
+				<br> <br>
+				<img src="assets/titlecard.png" style="width: 200%; max-width: 100%; height: auto">
+				<br>
+				<h3> 2022-06-23 <br> Alex Lee </br> </h3>
+			</section>
+
+			<section>
+				<h1 class="text-lg"> AlphaFold release was a major milestone in computational bio </h1>
+				<div class="r-stack">
+					<img src="https://assets-global.website-files.com/621e749a546b7592125f38ed/62277cf379fea3d01add0c22_Fig%203.jpg"
+						class="fragment fade-out" data-fragment-index="1">
+
+					<div class="flex fragment fade-in" data-fragment-index="2">
+						<div class="w-1/2 text-left">
+							<h3 class="text-left"> Main points: </h3>
+
+							<ul class="w-full">
+								<li> Input amino acid sequence is transformed to a 3D structure </li>
+								<li> Significant focus on sequence-alignment centric processing </li>
+							</ul>
+						</div>
+
+						<div class="w-1/2">
+							<img
+								src="https://assets-global.website-files.com/621e749a546b7592125f38ed/62277c4c42bcdc0bcf269b11_Fig%201.jpg">
+						</div>
+					</div>
+			</section>
+
+			<section>
+				<h2> What do we do once we have a structure? </h2>
+				<ul class="fragment fade-out" data-fragment-index="5">
+					<li class="fragment fade-in" data-fragment-index="2"> Dock small molecules for small molecule
+						screening
+					</li>
+					<li class="fragment fade-in" data-fragment-index="3"> Understand structure-function relationships
+					</li>
+					<li class="fragment fade-in" data-fragment-index="4"> <span class="font-bold underline">
+							Forward design</span> of
+						proteins for desired
+						functions: how can we make a protein that does X or Y? </li>
+				</ul>
+
+				<div class="r-stack">
+					<span>
+						<img src="assets/degron-example.png" class="fragment fade-in mb-0 pb-0 mt-0"
+							data-fragment-index="12">
+						<img src="assets/hes-papertitle.png" class="fragment fade-in m-0 p-0" data-fragment-index="12">
+					</span>
+				</div>
+			</section>
+
+			<section>
+				<h3> De-novo design successes dependent on usage of well-understood protein families </h3>
+				<div class="flex">
+					<div class="w-1/2">
+						<br>
+						<img src="assets/degron-mechanism.png" class="inline-block max-h-full"
+							style="transform: scale(1.3,1.3)">
+					</div>
+
+					<div class="w-1/2 text-left">
+						<br>
+
+						If <span class="text-green-800"> key </span> (helical) and short <span
+							class="text-orange-400">latch </span>/<span class="text-purple-800">hinge</span> structure
+						(both helical):
+						<br>
+						<ul>
+							<li class="ml-10"> latch gets pushed aside, Bcl2 binds (not shown) </li>
+						</ul>
+
+						<br>
+						<br>
+						else:
+						<br>
+						<ul>
+							<li class="ml-10"> Bcl2 does not bind </li>
+						</ul>
+
+						<p> <br>
+							<brZ> This approach is <span class="underline"> not </span> scalable, heavily utilizing
+								prior
+								knowledge of helical structure
+								interactions and Rosetta
+						</p>
+					</div>
+
+				</div>
+			</section>
+
+			<section>
+				<h3> Proposed alternative workflow (outlined in <a
+						href="https://www.nature.com/articles/s41586-022-04654-9">Cao, Nature 2022</a>): </h3>
+
+				<div class="flex justify-center">
+					<ol class="">
+						<li> Identify protein structure of interest (binds to protein X,
+							stabilizes protein A and B to
+							dimerize, etc.) </li>
+						<li> Alternatively identify just a couple of important AA to bind to a given structure </li>
+						<li> Identify a protein backbone/scaffold that can accomodate the desired molecular density
+						</li>
+
+					</ol>
+				</div>
+				<br> <br>
+
+				<h3 class="ml-6 fragment"> Our paper (a message passing neural network) focuses on (3). </h3>
+			</section>
+
+			<section>
+				<h3> What are message passing networks (MPNN) and what do they do? </h3>
+				<ul>
+					<li> MPNN learn to encode useful properties of graphs for some downstream task. </li>
+					<li> Utilizes flexibility of graphs for data representation in many systems. </li>
+				</ul>
+				<br>
+				<br>
+
+				<div class="text-left justify-center r-stack">
+					<span class="fragment fade-in-then-out">
+						<img src="assets/citronella.png">
+						<p class=""> Ex. molecular graph of citronella: <br> </p>
+						<li>adjacency matrix encodes whether a given carbon is bonded to
+							another (see carbon index 1 and 6) </li>
+						<li> suggests a node-wise property: number of neighbors / node connectivity </li>
+					</span>
+					<span class="fragment fade-in">
+
+						<img src="assets/input-output-graph.png" class="">
+
+					</span>
+				</div>
+
+			</section>
+
+			<section>
+				<div class="flex justify-center">
+					<img src="assets/input-output-graph.png" class="h-full py-2 pr-4 ml-8">
+				</div>
+				<div class="columns-1 flex-col items-center justify-center r-stack">
+
+					<div class="fragment fade-out flex flex-col">
+						<h3> How to approach the 2 ring prediction problem? </h3>
+						<p class="text-left"> Inaccurate but illustrative solution (without message passing): </p>
+						<li> Average the degree of nodes, classify positively if average is greater than threshold $k$
+						</li>
+						<li> We'll use this as a simple example without learning/fitting to frame message passing</li>
+					</div>
+
+					<div class="fragment">
+						$\mathcal{G}\ = \left(\mathcal{V}, \mathcal{E} \right)$ <br>
+						$\mathcal{V} = [v_{1}, v_{2}, ... v_{N}], \mathrm{where\ N\ is\ the\ number\ of\ nodes} \\\
+						D(v_{n}) = degree(v_{n}) \\\
+						A(\mathcal{V}) = \frac{1}{N}\sum_{v}\ D(v), v \in \mathcal{V} \\\
+						$
+
+						\[\begin{aligned}
+						\begin{equation}
+						C(\mathcal{G})=\begin{cases}
+						1, & \text{if}\ A(\mathcal{V}) > k.\\ 0, & \text{otherwise}. \end{cases}
+						\end{equation}
+						\end{aligned} \]
+					</div>
+
+				</div>
+			</section>
+
+			<section>
+				<img src="assets/input-output-graph.png" class="mt-0 pt-10 pb-0 mb-0 inline-block"
+					style="position: relative; top: -5rem">
+				<div class="multiCol text-med mt-0 p-0" style="text-align: center; position: relative; top: -8rem">
+					<div class="col mb-0 pb-0" style="font-size: 2rem">
+						$\mathcal{G}\ = \left(\mathcal{V}, \mathcal{E} \right)\\$
+						$\mathcal{V} = [v_{1}, v_{2}, ... v_{n}], \mathrm{where\ N\ is\ the\ number\ of\ nodes} \\\
+						D(v_{n}) = degree(v_{n}) \\\ \\
+						A(\mathcal{V}) = \frac{1}{N}\sum_{v}\ D(v), v \in \mathcal{V} \\\
+						$
+
+						\[\begin{aligned}
+						\begin{equation}
+						C(\mathcal{G})=\begin{cases}
+						1, & \text{if}\ A(\mathcal{V}) > k.\\ 0, & \text{otherwise}. \end{cases}
+						\end{equation}
+						\end{aligned} \]
+
+					</div>
+					<div class="col pb-0 mb-0 text-4xl">
+						$D$ <span class="underline text-red-400"> refines </span> embeddings/features of nodes (could
+						optionally
+						also
+						incorporate edge features). <br> <br>
+						$A$ <span class="underline text-red-400"> aggregates </span> features across nodes (often
+						permutation invariant). <br> <br> <br>
+						$C$ <span class="underline text-red-400"> performs classification (or regression) </span> over
+						aggregated, refined features. This can target the whole graph or each node.
+					</div>
+				</div>
+				<p class="fragment" style="position: relative; top: -9rem"> In general, MPNN will replace $D$ and $C$
+					(often recently
+					also $A$) with a learned operation
+					parameterized by neural networks.</p>
+			</section>
+
+			<section>
+				<h3> High-level intuition for message passing operation </h3>
+				<ul>
+					<li> Repeat $D$ and $A$ operations with a learned function (network) by; for each node $v_i$ (filled
+						circle): </li>
+					<ol>
+						<li> Gather neighboring node embeddings (messages). </li>
+						<li> Learn a function to update $v_i$ from the gathered messages by aggregating and refining
+							them. </li>
+						ex: $v_{i} \leftarrow v_{i} + A(D(v_{i}, N_{v_i}))$, $N$ is neighborhood of $v_i$
+
+					</ol>
+				</ul>
+
+				<img src="assets/mp-graphic.png" class="m-auto inline-block h-3/4 w-3/4">
+				<p class="fragment"> Objective is to let information flow between nodes. </p>
+			</section>
+
+			<section>
+				<h3> Intuition for ProteinMPNN and high-level workflow </h3>
+				<div class="r-stack">
+					<img src="assets/overview-proteinmpnn.svg" class="fragment fade-in-then-out w-full">
+					<img src="assets/proteinmpnnfinal.drawio.svg" class="fragment fade-in-then-out w-full">
+					<ul class="fragment">
+						<li> Encoder and decoder both update node and edge embeddings (more on that later) </li>
+						<li> No self-attention, unlike previous work; all MLP's and message passing </li>
+						<li> Decoder outputs predictions for each node's amino acid identity </li>
+					</ul>
+				</div>
+			</section>
+
+			<section>
+				<img src="assets/encoder-mpnn.svg" class="inline-block w-full">
+			</section>
+
+			<section>
+				<img src="assets/decoder-mpnn.svg" class="inline-block w-full">
+			</section>
+
+			<section>
+				<h3> Performance is robust compared to Rosetta, is related to noise level during training</h3>
+				<div class="r-stack">
+					<img src="assets/f1.png" class="w-full fragment fade-out">
+					<img src="assets/f2.png" class="w-7/8 h-auto fragment fade-in">
+
+				</div>
+			</section>
+
+			<section>
+				<h3> Sequences designed using MPNN are much more soluble than AlphaFold </h3>
+				<div class="r-stack">
+					<img src="assets/f3.png" class="fragment fade-in-then-out w-full" data-fragment-index="1">
+				</div>
+			</section>
+
+			<section>
+				<h3> Demonstration of de-novo protein design enabled by MPNN </h3>
+				<div>
+					<img src="assets/f4.png" class="fragment w-2/3 inline-block" data-fragment-index="2">
+				</div>
+
+			</section>
+			<section>
+				<h3> Techniques to increase performance </h3>
+
+				<div class="flex justify-center">
+					<ol>
+						<li> Large (40$\rightarrow$46% sequence recovery): Feature engineering from <a
+								href="https://www.mit.edu/~vgarg/GenerativeModelsForProteinDesign.pdf">Ingraham et
+								al.</a>
+						</li>
+						<li> Minor (40$\rightarrow$42% sequence recovery) Update of edge embeddings and node embeddings
+							(instead of just node) </li>
+						<li> Permuted decoding instead of sequential autoregressive </li>
+						<li> Training with noise injection (on high res structures) </li>
+					</ol>
+				</div>
+			</section>
+
+			<section>
+				<h3> Spatial encodings for node and edge embeddings </h3>
+				<h4> Start with node embeddings (coordinates): $\mathcal{X} = \{x_i \in \mathbb{R}^3, 1 \leq i \leq N\}$
+					(N positions) <br>
+
+				</h4>
+
+				<div class="multiCol">
+					<div class="col">
+						<h5> Compute orientations $O_i$ that define a local coordinate system for each node: </h5>
+						<span class="flex justify-center"> $O_i = [b_i\ \;\; n_i \;\; b_i \times n_i]$ </span>
+
+					</div>
+					<div class="col">
+
+						<li> $b_i$ is the bisector between the vectors <br> $(x_{i-1} - x_i)$ and $(x_{i+1}-x_i)$
+						</li>
+						<li> $n_i$ is orthogonal vector to plane set by <br> $(x_{i-1}-x)$ and $(x_{i+1}-x_i)$</li>
+					</div>
+				</div>
+
+				<div class="r-stack">
+					<img src="assets/equations.png" class="fragment fade-out w-full">
+					<div class="multiCol fragment fade-in">
+						<div class="col flex items-center justify-center">
+							<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Triangle_ABC_with_bisector_AD.svg/480px-Triangle_ABC_with_bisector_AD.svg.png"
+								style="transform: scale(1.4,1.4); position: relative; left: 20rem">
+						</div>
+						<div class="col">
+							<li> ($A$, $B$, $C$) are ($x$, $x_{i+1}$, $x_{i-1}$), respectively </li>
+							<li> $n$ is vector orthogonal to previous ones (out of page) </li>
+
+						</div>
+					</div>
+				</div>
+			</section>
+			<section>
+				<section>
+					<h3> Finally edge features are computed like this: </h3>
+					<img src="assets/equations2.png" class="inline-block">
+					<h5> In the paper we also augment with bond distances between intra-AA atoms
+						(N$\rightarrow$C<sub>$\alpha$</sub>, N$\rightarrow$O etc.) </h5>
+
+					<div class="multiCol">
+						<p class="text-6xl"> Explanation </p> <br> <br>
+
+						<div class="col">
+							<br>
+							<li> $r$ is radial basis features (comparable to sinusoidal position embeddings from
+								transformer) </li>
+							<li> $O_i$ term relates $(x_i, O_i)$ to $(x_j, O_j)$ by a projection onto $O_i$ </li>
+							<li> $q$ is an orientation representation of $O_{i}^{T}O_j$ using a quaternion (3D rotation
+								representation of form $a + \mathrm{b}i + \mathrm{c}j + \mathrm{d}k$) </li>
+
+						</div>
+						<div class="col flex-col">
+							<div class="r-stack">
+								<img src="https://upload.wikimedia.org/wikipedia/commons/9/96/Gaussian_function_shape_parameter.png"
+									style="position: relative; left: 7rem; top: 8rem; transform: scale(1.4,1.4)"
+									class="fragment fade-in-then-out">
+								<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Euler_AxisAngle.png/220px-Euler_AxisAngle.png"
+									style="position: relative; left: 7rem; top: 8rem; transform: scale(3, 3)"
+									class="fragment">
+							</div>
+
+						</div>
+					</div>
+
+				</section>
+
+				<section>
+					<img
+						src="https://i1.wp.com/www.differencebetween.com/wp-content/uploads/2021/07/Alpha-Acids.png?resize=768%2C517&ssl=1">
+					<p> alpha AA </p>
+					<img
+						src="https://i1.wp.com/www.differencebetween.com/wp-content/uploads/2021/07/Beta-Amino-Acids.png?resize=768%2C334&ssl=1">
+					<p> beta AA </p>
+				</section>
+
+			</section>
+			<section>
+				<h3> Possibly (?) an increase from autoregressive to random decoding </h3>
+				<p> One way to do sequence-to-sequence prediction is do it autoregressively: </p>
+				$p(\textbf{s}|\textbf{x}) = \prod_i\; p(s_i|\textbf{x}, \textbf{s}_{ < i})$ <p> In the paper,
+					they chose to do it randomly by permuting the elements of a diagonal matrix: </p>
+					<img src="assets/shuffle.png" class="inline-block">
+					<p> In the paper, the gain in test set performance is pretty small (47.3 to 47.9 sequence recovery),
+						so it's hard to know how well this worked.
+					<p class="fragment"> Also, there was no hyperparameter tuning or performance variation
+						quantification! </p>
+
+			</section>
+
+			<section>
+				<h3> Hyperparameter decisions are not explained, also seem to come from a paper that isn't relevant to
+					this method</h3>
+				<img src="assets/hparam.png" class="inline-block">
+				<img src="assets/hparams2.png" class="inline-block">
+
+				<h5> Could be mistaken, but this method is not a Transformer? Although, Ingraham reference paper is.
+				</h5>
+			</section>
+
+			<section>
+				<h3> Takeaways: </h3>
+				<ul>
+					<li> Protein design continues to make significant strides </li>
+					<li> Remarkably simple method (no attention or more modern graph NN methods) </li>
+					<li> Relatively small amount of data (~24k seqs w/ < 3.5 &#8491 resolution) and only ~1.5 M
+							parameter network [ResNet50 has 23M, MobileNet 13M] </li>
+					<li> Initializing node embeddings to 0 at start somehow still works</li>
+				</ul>
+
+			</section>
+		</div>
+	</div>
+
+	<script src="dist/reveal.js"></script>
+	<script src="plugin/notes/notes.js"></script>
+	<script src="plugin/markdown/markdown.js"></script>
+	<script src="plugin/highlight/highlight.js"></script>
+	<script src="plugin/pointer/pointer.js"></script>
+	<script src="plugin/math/math.js"></script>
+	<script src="plugin/notes/notes.js"></script>
+	<script src="plugin/chalkboard/plugin.js"></script>
+	<script src="plugin/customcontrols/plugin.js"></script>
+
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+			center: true,
+			margin: 0,
+			padding: 0,
+			width: 1920,
+			height: 1080,
+			minScale: 0.2,
+			maxScale: 1.5,
+			keyboard: true,
+			overview: true,
+			pointer: {
+				key: "q",
+				color: "red",
+				pointerSize: 45,
+				alwaysVisible: false
+			},
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealPointer, RevealChalkboard]
+		});
+	</script>
+</body>
+
+</html>
